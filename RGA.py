@@ -8,7 +8,7 @@ import numpy
 class RGA:
 
 	scan = True  # This is used for stop, peak scan - if set to False
-	status = "Idle"  # Status of the device
+	status = [0 for col in range(4)]  # Status of the device
 	showReadout = True  # This one suppresses or not text output from RGA
 
 	# Class constructor
@@ -16,12 +16,13 @@ class RGA:
 
 		print("Starting connection with RGA: ")
 		self.telCon = telnetlib.Telnet(host, port)
-		# print self.telCon.read_until("\r\r")
-		self.readout(0, True)
+		out = self.rga_readout(0, True)
+		if out.find("MKSRGA  Single") > -1:
+			self.status[0] = 1
 
 		print("List of available sensors: ")
 		self.telCon.write("Sensors\n")
-		out = self.readout(0, True)
+		out = self.rga_readout(0, True)
 
 		out = out.replace("\r", "")  # Removing \r, \n form the output
 		out = out.replace("\n", "")
@@ -30,21 +31,24 @@ class RGA:
 
 		print("Status of sensors with RGA: ")
 		self.telCon.write("SensorState\n")
-		self.readout(0, True)
+		self.rga_readout(0, True)
 
 		print("Selecting sensor: ")
 		sensor = "Select " + out[7] + "\n"
 		self.telCon.write(sensor)
-		self.readout(0, True)
+		self.rga_readout(0, True)
+
 
 		print("Taking control over the sensor: ")
 		self.telCon.write("Control \"RGA python server\" \"1.0\" \n")
-		self.readout(0, True)
+		out = self.rga_readout(0, True)
+		if out.find("Control OK") > -1:
+			self.status[1] = 1
 
-		self.status = "Idle"
+
 
 	# Read output
-	def readout(self, timeout, show):
+	def rga_readout(self, timeout, show):
 
 		if self.showReadout is True and show is True and timeout == 0:
 			out = self.telCon.read_until("\r\r")
@@ -62,66 +66,72 @@ class RGA:
 		return out
 
 	# Release
-	def release(self):
+	def rga_release(self):
 
 		print("Release of the sensor: ")
+
 		self.telCon.write("Release\n")
-		self.readout(1, True)
+		self.rga_readout(1, True)
+		self.status[1] = 0
+		self.status[0] = 0
 
 	# Filament control
-	def filament(self, state):
+	def rga_filament(self, state):
 
 		if state == "On":
 			self.telCon.write("FilamentControl On\n")
 			time.sleep(5)
-			self.readout(0, True)  # Little bit robust but works
-			self.readout(0, True)
-			self.readout(0, True)
+			self.rga_readout(0, True)  # Little bit robust but works
+			self.rga_readout(0, True)
+			self.rga_readout(0, True)
+			self.rga_readout(0, True)
+			self.status[2] = 1
 		elif state == "Off":
 			self.telCon.write("FilamentControl Off\n")
 			time.sleep(5)
-			self.readout(0, True)  # Little bit robust but works
-			self.readout(0, True)
-			self.readout(0, True)
-			self.readout(0, True)
+			self.rga_readout(0, True)  # Little bit robust but works
+			self.rga_readout(0, True)
+			self.rga_readout(0, True)
+			self.rga_readout(0, True)
+			self.status[2] = 0
 		else:
-			print("Wrong input")
+			print("Wrong filament input")
 
 	# Single peaks scan
-	def peakScan(self, mass_selected):
+	def rga_peakscan(self, mass_selected):
 
 		global mass_read
 		mass_read = numpy.array([0, 0, 0])
 
 		# Here we convert string to numbers- selecting masses to scan from input
-		mass_selected = mass_selected.split(' ')
 		mass_selected = [int(i) for i in mass_selected]
 		print("Masses selected for scan :", mass_selected, "\n")
 
 		# Defining peak jump scan
 		print("Add peak jump measurement: ")
 		self.telCon.write("AddPeakJump Peak1 PeakCenter 2 0 0 0\n")
-		self.readout(0, True)
+		self.rga_readout(0, True)
 
 		# Adding masses to scan
 		for i in range(len(mass_selected)):
 
 				self.telCon.write("MeasurementAddMass " + str(mass_selected[i]) + "\n")  # Here we again convert number to string - just for training
-				self.readout(0, True)
+				self.rga_readout(0, True)
 		time.sleep(1)
 		# Adding scan to scan list
 		self.telCon.write("ScanAdd Peak1\n")
-		self.readout(0, True)
+		self.rga_readout(0, True)
 
 		# Starting scan
 		self.telCon.write("ScanStart 1\n")
 
-		self.status = "Scanning"
+		self.status[3] = 1
 
 		while self.scan:
 
 			# Processing output string
-			out = self.telCon.read_until("\r\r", 1)
+			#out = self.telCon.read_until("\r\r", 1)
+			out = self.rga_readout(1, True)
 			out = out.split(' ')
 			out = filter(None, out)
 
@@ -136,13 +146,34 @@ class RGA:
 		self.telCon.write("ScanStop\n")
 		print(self.telCon.read_until("never", 1))  # Collect all garbage output
 		print("Mass read stop...")
-		self.status = "Idle"
+		self.status[3] = 0
 		self.scan = True
 
+	# Stop scan
+	def rga_peakscan_stop(self):
+		if self.scan == True:
+			self.reply2 == ""
+			self.scan = False
+
 	# Read one mass
-	def read_oneMass(self, one_mass):
+	def rga_onemass(self, one_mass):
 
 		find_mass = numpy.nonzero(mass_read == one_mass)
 		mass_found = mass_read[find_mass[0], :]
 		out = [int(mass_found[-1, 0]), int(mass_found[-1, 1]), mass_found[-1, 2]]
 		return out
+
+	def rga_status(self):
+
+		status_str = []
+
+		status_str.append([["not connected"], ["connected"], ["RGA connection : "]])
+		status_str.append([["not controlled"], ["controlled"], ["RGA control : "]])
+		status_str.append([["off"], ["on"], ["Filament status :"]])
+		status_str.append([["idle"], ["running"], ["Scan status: "]])
+
+		for i in range(4):
+			print("".join(map(str, (status_str[i][2]))) + "".join(map(str, (status_str[i][self.status[i]]))))
+
+
+
