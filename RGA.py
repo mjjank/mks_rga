@@ -152,7 +152,6 @@ class RGA:
 	# Stop scan
 	def rga_peakscan_stop(self):
 		if self.scan == True:
-			self.reply2 == ""
 			self.scan = False
 
 	# Read one mass

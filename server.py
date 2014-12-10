@@ -107,6 +107,7 @@ class RgaServer:
             t2.start()
 
         elif command == "rga peakscan stop":
+            self.reply2 = ""
             self.rga_eh1.rga_peakscan_stop()
         elif command.find("mass ") > -1:
             command = command.replace("mass ", "")
