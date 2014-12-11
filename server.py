@@ -126,3 +126,12 @@ class RgaServer:
         elif command == "test":
             print("Test works")
 
+if __name__ == "__main__":
+
+    # Server address is rga-id03-eh1 10014
+
+    # Server object
+    s = RgaServer()
+
+    # Starting server
+    s.server_send("server start")
