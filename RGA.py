@@ -7,9 +7,9 @@ import numpy
 
 class RGA:
 
-	scan = True  # This is used for stop, peak scan - if set to False
-	status = [0 for col in range(4)]  # Status of the device
-	showReadout = True  # This one suppresses or not text output from RGA
+	scan = True  # This is used for stop of peak scan - if set to False
+	status = [0 for col in range(4)]  # Status of the device, look in rga_status method
+	showReadout = True  # This one is responsible for the text output from RGA
 
 	# Class constructor
 	def __init__(self, host, port):
@@ -37,7 +37,6 @@ class RGA:
 		sensor = "Select " + out[7] + "\n"
 		self.telCon.write(sensor)
 		self.rga_readout(0, True)
-
 
 		print("Taking control over the sensor: ")
 		self.telCon.write("Control \"RGA python server\" \"1.0\" \n")
@@ -130,7 +129,7 @@ class RGA:
 		while self.scan:
 
 			# Processing output string
-			#out = self.telCon.read_until("\r\r", 1)
+			# out = self.telCon.read_until("\r\r", 1)
 			out = self.rga_readout(1, True)
 			out = out.split(' ')
 			out = filter(None, out)
