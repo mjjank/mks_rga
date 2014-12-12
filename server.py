@@ -50,23 +50,23 @@ class RgaServer:
 
                 reply = "Connection established\r\n"
 
-                data = conn.recv(1024)
+                data = conn.recv(1024).decode("utf8", "ignore")
 
                 if not data:
                     break
-                conn.sendall(reply)
+                conn.sendall(reply.encode("utf8", "ignore"))
                 self.status[0] = 1
                 break
         # Continuous sending and receiving data
         while True:
 
-            data = conn.recv(1024)
+            data = conn.recv(1024).decode("utf8", "ignore")
             data = data.replace("\r\n", "")  # Removing not necessary part of the received string
             self.server_send(data)
             if data.find("exit") > -1:  # "exit" causes shut down of the socket
                 self.status[0] = 0
                 break
-            conn.sendall(self.reply2)
+            conn.sendall(self.reply2.encode("utf8", "ignore"))
 
         conn.close()
         s.close()
